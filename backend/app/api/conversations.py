@@ -1,21 +1,31 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.conversation import Conversation
-from app.models.organization import Organization
-from app.schemas.conversation import (
-    ConversationCreate,
-    ConversationResponse,
-)
+from app.models.user import User
+from app.schemas.conversation import ConversationCreate, ConversationResponse
+
 
 router = APIRouter(
     prefix="/organizations/{organization_id}/conversations",
     tags=["Conversations"],
 )
+
+
+def verify_organization_access(
+    organization_id: UUID,
+    current_user: User,
+):
+    if organization_id != current_user.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
 
 
 @router.post(
@@ -26,19 +36,14 @@ router = APIRouter(
 def create_conversation(
     organization_id: UUID,
     payload: ConversationCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    organization = db.get(Organization, organization_id)
-
-    if organization is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organization not found",
-        )
+    verify_organization_access(organization_id, current_user)
 
     conversation = Conversation(
-        organization_id=organization_id,
-        customer_email=str(payload.customer_email),
+        organization_id=current_user.organization_id,
+        customer_email=str(payload.customer_email).lower(),
     )
 
     db.add(conversation)
@@ -54,19 +59,16 @@ def create_conversation(
 )
 def list_conversations(
     organization_id: UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    organization = db.get(Organization, organization_id)
-
-    if organization is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organization not found",
-        )
+    verify_organization_access(organization_id, current_user)
 
     statement = (
         select(Conversation)
-        .where(Conversation.organization_id == organization_id)
+        .where(
+            Conversation.organization_id == current_user.organization_id
+        )
         .order_by(Conversation.created_at.desc())
     )
 

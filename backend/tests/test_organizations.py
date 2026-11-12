@@ -1,56 +1,35 @@
-def test_create_organization(client):
-    response = client.post(
-        "/api/v1/organizations/",
-        json={
-            "name": "Test Organization",
-            "slug": "test-organization",
-        },
+
+def test_get_my_organization(client, tenant_context):
+    response = client.get(
+        "/api/v1/organizations/me",
+        headers=tenant_context["headers_a"],
     )
-
-    assert response.status_code == 201
-
-    data = response.json()
-    assert data["name"] == "Test Organization"
-    assert data["slug"] == "test-organization"
-    assert "id" in data
-
-
-def test_list_organizations(client):
-    client.post(
-        "/api/v1/organizations/",
-        json={
-            "name": "First Organization",
-            "slug": "first-organization",
-        },
-    )
-
-    response = client.get("/api/v1/organizations/")
 
     assert response.status_code == 200
-
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["slug"] == "first-organization"
+    assert data["id"] == str(tenant_context["organization_a"].id)
+    assert data["slug"] == "organization-a"
 
 
-def test_duplicate_organization_slug(client):
-    payload = {
-        "name": "First Organization",
-        "slug": "duplicate-slug",
-    }
-
-    first_response = client.post(
-        "/api/v1/organizations/",
-        json=payload,
+def test_user_cannot_access_another_organization(client, tenant_context):
+    response = client.get(
+        "/api/v1/organizations/me",
+        headers=tenant_context["headers_b"],
     )
 
-    second_response = client.post(
-        "/api/v1/organizations/",
-        json={
-            "name": "Another Organization",
-            "slug": "duplicate-slug",
-        },
+    assert response.status_code == 200
+    assert response.json()["id"] == str(
+        tenant_context["organization_b"].id
     )
 
-    assert first_response.status_code == 201
-    assert second_response.status_code == 409
+
+def test_organization_endpoint_requires_authentication(client):
+    response = client.get("/api/v1/organizations/me")
+
+    assert response.status_code == 401
+
+
+def test_old_public_organization_list_endpoint_is_removed(client):
+    response = client.get("/api/v1/organizations/")
+
+    assert response.status_code == 404

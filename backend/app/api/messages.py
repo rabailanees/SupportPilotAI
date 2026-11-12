@@ -1,18 +1,42 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.user import User
 from app.schemas.message import MessageCreate, MessageResponse
+
 
 router = APIRouter(
     prefix="/conversations/{conversation_id}/messages",
     tags=["Messages"],
 )
+
+
+def get_tenant_conversation(
+    conversation_id: UUID,
+    current_user: User,
+    db: Session,
+) -> Conversation:
+    statement = select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.organization_id == current_user.organization_id,
+    )
+
+    conversation = db.scalar(statement)
+
+    if conversation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+
+    return conversation
 
 
 @router.post(
@@ -23,18 +47,17 @@ router = APIRouter(
 def create_message(
     conversation_id: UUID,
     payload: MessageCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    conversation = db.get(Conversation, conversation_id)
-
-    if conversation is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found",
-        )
+    conversation = get_tenant_conversation(
+        conversation_id,
+        current_user,
+        db,
+    )
 
     message = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         sender_type=payload.sender_type,
         content=payload.content,
     )
@@ -52,15 +75,10 @@ def create_message(
 )
 def list_messages(
     conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    conversation = db.get(Conversation, conversation_id)
-
-    if conversation is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found",
-        )
+    get_tenant_conversation(conversation_id, current_user, db)
 
     statement = (
         select(Message)

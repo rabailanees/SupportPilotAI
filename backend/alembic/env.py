@@ -9,7 +9,7 @@ from app.models.organization import Organization
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.support_ticket import SupportTicket
-
+from app.models.user import User
 
 config = context.config
 

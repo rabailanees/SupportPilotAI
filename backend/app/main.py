@@ -9,6 +9,7 @@ from app.api.organizations import router as organizations_router
 from app.api.conversations import router as conversations_router
 from app.api.messages import router as messages_router
 from app.api.tickets import router as tickets_router
+from app.api.auth import router as auth_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -33,6 +34,11 @@ app.include_router(
 
 app.include_router(
     tickets_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    auth_router,
     prefix="/api/v1",
 )
 
