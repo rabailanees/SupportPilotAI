@@ -1,4 +1,5 @@
-﻿from pydantic_settings import BaseSettings, SettingsConfigDict
+﻿from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
+    STORAGE_DIR: Path = Path(__file__).resolve().parents[2] / "storage"
+    MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file=".env",

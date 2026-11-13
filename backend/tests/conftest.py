@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
@@ -11,7 +11,8 @@ from app.db.session import get_db
 from app.main import app
 from app.models.organization import Organization
 from app.models.user import User
-
+from app.models.knowledge_document import KnowledgeDocument
+from app.models.knowledge_chunk import KnowledgeChunk
 
 test_url = make_url(settings.TEST_DATABASE_URL)
 
@@ -38,6 +39,14 @@ TestingSessionLocal = sessionmaker(
     autoflush=False,
     autocommit=False,
 )
+
+@pytest.fixture(scope="session", autouse=True)
+def enable_pgvector_extension():
+    """Ensure pgvector exists before test tables are created."""
+    with test_engine.begin() as connection:
+        connection.execute(
+            text("CREATE EXTENSION IF NOT EXISTS vector")
+        )
 
 
 @pytest.fixture(scope="function")
